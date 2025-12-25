@@ -11,6 +11,21 @@ set -e
 
 readonly VALID_TYPES=("feat" "fix" "docs" "refactor" "test" "chore" "perf" "style" "wip")
 
+# Colors - only use if terminal supports them
+if [[ -t 1 ]] && command -v tput &> /dev/null && [[ $(tput colors) -ge 8 ]]; then
+    readonly RED='\033[0;31m'
+    readonly GREEN='\033[0;32m'
+    readonly YELLOW='\033[1;33m'
+    readonly BLUE='\033[0;34m'
+    readonly NC='\033[0m'
+else
+    readonly RED=''
+    readonly GREEN=''
+    readonly YELLOW=''
+    readonly BLUE=''
+    readonly NC=''
+fi
+
 declare -A DEFAULT_MESSAGES=(
     ["feat"]="add new feature"
     ["fix"]="fix issue"
@@ -28,9 +43,9 @@ declare -A DEFAULT_MESSAGES=(
 
 show_usage() {
     cat << EOF
-Usage: qc <type> [scope] [message] [files]
+${BLUE}Usage:${NC} qc <type> [scope] [message] [files] [flags]
 
-Commit Types:
+${YELLOW}Commit Types:${NC}
   feat      - New feature
   fix       - Bug fix
   docs      - Documentation changes
@@ -41,17 +56,23 @@ Commit Types:
   style     - Code style changes
   wip       - Work in progress
 
-Examples:
+${YELLOW}Flags:${NC}
+  -p, --push    Push to remote after committing
+  --amend       Amend the last commit message (supports -p flag)
+
+${YELLOW}Examples:${NC}
   qc fix "handle null response"              # fix: handle null response
   qc fix                                     # fix: fix issue (default)
   qc fix api                                 # fix(api): fix issue (default with scope)
   qc fix api "handle null response"          # fix(api): handle null response
   qc feat "add user auth" .                  # commit all files including new ones
   qc fix "bug fix" src/api.py tests/test.py # commit specific files
-  qc refactor .                              # refactor: refactor code (all files)
-  qc wip                                     # wip: 2025-12-25 14:30
+  qc refactor . -p                           # commit and push
+  qc fix --amend "better message"            # amend last commit with new message
+  qc fix api --amend -p                      # amend and push
+  qc wip -p                                  # wip with push
 
-File Handling:
+${YELLOW}File Handling:${NC}
   No files    → git add -u (tracked changes only)
   .           → git add . (all files including new)
   file names  → git add <files> (specific files)
@@ -61,13 +82,18 @@ EOF
 
 print_error() {
     local message=$1
-    echo "Error: $message" >&2
+    echo -e "${RED}Error:${NC} $message" >&2
     echo "" >&2
 }
 
 print_success() {
     local message=$1
-    echo "✓ $message"
+    echo -e "${GREEN}✓${NC} $message"
+}
+
+print_info() {
+    local message=$1
+    echo -e "${BLUE}→${NC} $message"
 }
 
 # ============================================================================
@@ -88,6 +114,12 @@ validate_commit_type() {
     
     for valid_type in "${VALID_TYPES[@]}"; do
         if [[ "$type" == "$valid_type" ]]; then
+            # Check if default message exists for this type
+            if [[ -z "${DEFAULT_MESSAGES[$type]}" ]]; then
+                print_error "No default message configured for type '$type'"
+                echo "This is a configuration error. Please report this issue." >&2
+                exit 1
+            fi
             return 0
         fi
     done
@@ -119,13 +151,36 @@ validate_files_exist() {
 }
 
 check_git_changes() {
-    if ! git diff-index --quiet HEAD -- 2>/dev/null && ! git diff --cached --quiet 2>/dev/null; then
-        return 0
-    fi
-    
-    if ! git ls-files --others --exclude-standard | grep -q .; then
+    # Check if there are any changes at all
+    if git diff-index --quiet HEAD -- 2>/dev/null && \
+       git diff --cached --quiet 2>/dev/null && \
+       ! git ls-files --others --exclude-standard | grep -q .; then
         print_error "No changes to commit"
         echo "Working tree is clean. Make some changes before committing." >&2
+        exit 1
+    fi
+}
+
+validate_remote_exists() {
+    if ! git remote | grep -q .; then
+        print_error "No remote repository configured"
+        echo "Add a remote with: git remote add origin <url>" >&2
+        exit 1
+    fi
+    
+    # Check if current branch has upstream
+    local current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if ! git rev-parse --abbrev-ref --symbolic-full-name @{u} > /dev/null 2>&1; then
+        print_error "Current branch '$current_branch' has no upstream branch"
+        echo "Set upstream with: git push -u origin $current_branch" >&2
+        exit 1
+    fi
+}
+
+validate_can_amend() {
+    if ! git rev-parse HEAD >/dev/null 2>&1; then
+        print_error "Cannot amend - no previous commit exists"
+        echo "Make an initial commit first before using --amend" >&2
         exit 1
     fi
 }
@@ -138,23 +193,73 @@ stage_files() {
     local files=("$@")
     
     if [[ ${#files[@]} -eq 0 ]]; then
-        git add -u
+        if ! git add -u 2>&1; then
+            print_error "Failed to stage files"
+            exit 1
+        fi
     elif [[ ${#files[@]} -eq 1 ]] && [[ "${files[0]}" == "." ]]; then
-        git add .
+        if ! git add . 2>&1; then
+            print_error "Failed to stage all files"
+            exit 1
+        fi
     else
         validate_files_exist "${files[@]}"
-        git add "${files[@]}"
+        if ! git add "${files[@]}" 2>&1; then
+            print_error "Failed to stage specified files"
+            exit 1
+        fi
     fi
 }
 
 create_commit() {
     local message=$1
     
-    if ! git commit -m "$message" 2>/dev/null; then
+    if ! git commit -m "$message" 2>&1; then
         print_error "Commit failed"
-        echo "Git commit command failed. Check git status for details." >&2
+        echo "Run 'git status' to see what went wrong." >&2
         exit 1
     fi
+}
+
+amend_commit() {
+    local message=$1
+    
+    if ! git commit --amend -m "$message" 2>&1; then
+        print_error "Amend failed"
+        echo "Run 'git status' to see what went wrong." >&2
+        exit 1
+    fi
+}
+
+push_to_remote() {
+    print_info "Pushing to remote..."
+    
+    local push_output
+    if ! push_output=$(git push 2>&1); then
+        print_error "Push failed"
+        echo "$push_output" >&2
+        echo "" >&2
+        echo "You may need to pull first or resolve conflicts." >&2
+        exit 1
+    fi
+    
+    print_success "Pushed to remote"
+}
+
+push_force_to_remote() {
+    print_info "Force pushing to remote (amended commit)..."
+    
+    local push_output
+    if ! push_output=$(git push --force-with-lease 2>&1); then
+        print_error "Force push failed"
+        echo "$push_output" >&2
+        echo "" >&2
+        echo "This can happen if the remote has newer commits." >&2
+        echo "Use 'git pull --rebase' to sync, then try again." >&2
+        exit 1
+    fi
+    
+    print_success "Force pushed to remote"
 }
 
 # ============================================================================
@@ -174,7 +279,7 @@ build_commit_message() {
 }
 
 generate_wip_message() {
-    local timestamp=$(date "+%Y-%m-%d %H:%M")
+    local timestamp=$(date "+%Y-%m-%d %H:%M %Z")
     echo "wip: $timestamp"
 }
 
@@ -191,6 +296,36 @@ is_likely_message() {
 is_file_or_dot() {
     local arg=$1
     [[ "$arg" == "." ]] || [[ -f "$arg" ]] || [[ -d "$arg" ]]
+}
+
+is_flag() {
+    local arg=$1
+    [[ "$arg" == "-p" ]] || [[ "$arg" == "--push" ]] || [[ "$arg" == "--amend" ]]
+}
+
+extract_flags() {
+    local should_push=false
+    local should_amend=false
+    local args=()
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -p|--push)
+                should_push=true
+                shift
+                ;;
+            --amend)
+                should_amend=true
+                shift
+                ;;
+            *)
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    echo "$should_push|$should_amend|${args[*]}"
 }
 
 parse_arguments() {
@@ -280,19 +415,69 @@ main() {
     
     validate_commit_type "$commit_type"
     
-    # Handle wip special case
-    if [[ "$commit_type" == "wip" ]]; then
-        local wip_message=$(generate_wip_message)
-        local wip_files=("$@")
+    # Extract flags from all arguments
+    local flag_result=$(extract_flags "$@")
+    IFS='|' read -r should_push should_amend remaining_args <<< "$flag_result"
+    
+    # Convert remaining args back to array
+    local args=()
+    if [[ -n "$remaining_args" ]]; then
+        read -ra args <<< "$remaining_args"
+    fi
+    
+    # Handle amend special case
+    if [[ "$should_amend" == "true" ]]; then
+        validate_can_amend
         
-        stage_files "${wip_files[@]}"
-        create_commit "$wip_message"
-        print_success "Committed: $wip_message"
+        local scope=""
+        local message=""
+        
+        # Parse arguments for new message
+        if [[ ${#args[@]} -eq 0 ]]; then
+            message="${DEFAULT_MESSAGES[$commit_type]}"
+        elif [[ ${#args[@]} -eq 1 ]]; then
+            if is_likely_message "${args[0]}"; then
+                message=${args[0]}
+            else
+                scope=${args[0]}
+                message="${DEFAULT_MESSAGES[$commit_type]}"
+            fi
+        else
+            scope=${args[0]}
+            message=${args[1]}
+        fi
+        
+        local commit_message=$(build_commit_message "$commit_type" "$scope" "$message")
+        amend_commit "$commit_message"
+        print_success "Amended: $commit_message"
+        
+        # Push if requested (force with lease since we amended)
+        if [[ "$should_push" == "true" ]]; then
+            validate_remote_exists
+            push_force_to_remote
+        fi
+        
         exit 0
     fi
     
-    # Parse remaining arguments
-    local parsed=$(parse_arguments "$commit_type" "$@")
+    # Handle wip special case
+    if [[ "$commit_type" == "wip" ]]; then
+        local wip_message=$(generate_wip_message)
+        
+        stage_files "${args[@]}"
+        create_commit "$wip_message"
+        print_success "Committed: $wip_message"
+        
+        if [[ "$should_push" == "true" ]]; then
+            validate_remote_exists
+            push_to_remote
+        fi
+        
+        exit 0
+    fi
+    
+    # Parse remaining arguments for normal commits
+    local parsed=$(parse_arguments "$commit_type" "${args[@]}")
     IFS='|' read -r scope message files_str <<< "$parsed"
     
     # Convert files string back to array
@@ -308,6 +493,12 @@ main() {
     stage_files "${files[@]}"
     create_commit "$commit_message"
     print_success "Committed: $commit_message"
+    
+    # Push if requested
+    if [[ "$should_push" == "true" ]]; then
+        validate_remote_exists
+        push_to_remote
+    fi
 }
 
 # Run main function
